@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zebra-aws
+  namespace: zebra-aws
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zebra-aws
+  template:
+    metadata:
+      labels:
+        app: zebra-aws
+    spec:
+      containers:
+      - name: zebra-aws
+        image: orent66/zebra:v1
+        imagePullPolicy: Always
+        env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: access-key
+              key: accessKeyId
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: secret-access
+              key: secretAccessKey
+        ports:
+        - containerPort: 5000
+        volumeMounts:
+        - mountPath: "/zebra/devops-task"
+          name: large-files
+          readOnly: true
+      volumes:
+      - name: large-files
+        hostPath:
+          path: /home/orent66/work/zebra/large-files
+          type: Directory
