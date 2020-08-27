@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+  namespace: zebra-aws
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+    spec:
+      containers:
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: access-key
+              key: accessKeyId
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: secret-access
+              key: secretAccessKey
+        ports:
+        - containerPort: {{ .Values.ports.containerPort }}
+        volumeMounts:
+        - mountPath: "{{ .Values.volumeMounts.mountPath }}"
+          name: {{ .Values.volumeMounts.name }}
+          readOnly: true
+      volumes:
+      - name: {{ .Values.volumes.name }}
+        hostPath:
+          path: {{ .Values.volumes.path }}
+          type: Directory

@@ -2,20 +2,24 @@
 # **********************************************
 #
 #  name:       aws_s3_service.py  
-#
+
 #  purpose:    The service expects to recieve a web service call with a file name and the bucket
 #              in AWS to which it should be copied. The boto3 python package will handle the process
 #              of copying the file in threads in order to shorten the time to completed the task.
 #
 #  tools:      This service uses the Flask framework and boto3 package to work with AWS S3 resources.
 #
-#  parameters: The webservice requires AWS user credentials and received as in put
-#              in the call a source file name, an AWS bucket name and an AWS region.
+#  parameters: The webservice requires AWS user credentials which will be supplied to the docker container externally
+#              either as env variables or more securly through kubernetes secrets
+#              The input for the call a source is file name, an AWS bucket name and an AWS region.
 #
+#  assumptions: Currently there is no error handling so that the service relies on an existing file name found in 
+#               a directory supplied by an external variable workdir, a valid bucket name that is reachable with the
+#               supplied AWS credentials. The region provided is not directly used but is stored as an env variable
 #  Output:     
 #              
 #
-#  Created: 21/08/2020
+#  Created: 24/08/2020
 #
 #  Maintainer: Oren Teomi
 #
@@ -28,58 +32,53 @@ from flask import request
 import threading 
 import boto3
 from boto3.s3.transfer import TransferConfig
-from botocore.exceptions import NoCredentialsError
 
-def FastUploadToS3(filename,bucket):
+# Fast copy function to AWS with multiple threads
+# -----------------------------------------------
+def FastUploadToS3(filename,bucket,region):
     s3_client = boto3.client('s3')
     config = TransferConfig(multipart_threshold=1024*25, max_concurrency=10,
                         multipart_chunksize=1024*25, use_threads=True)
-#    file_path = base_dir + filename
-    file_path = os.getenv('workdir')+ '/' + filename
-#    file_path = os.path.dirname(__file__)+ '/' + filename
-    keypath = 'large_files/'+filename
-    s3_client.upload_file(file_path, bucket, keypath,Config = config)
-#    s3_client.upload_file(file_path, bucket, keypath,ExtraArgs={ 'ACL': 'public-read'},Config = config)
-#    ExtraArgs={ 'ACL': 'public-read'},
-#    Config = config
-#    Callback=ProgressPercentage(filename)
 
-def UploadToS3(local_file, bucket, s3_file):
-    #    s3 = boto3.client('s3', aws_access_key_id=ACCESS_KEY,aws_secret_access_key=SECRET_KEY)
-        s3 = boto3.client('s3')
-    
-        try:
-            s3.upload_file(local_file, bucket, s3_file)
-            print("Upload Successful")
-            return True
-        except FileNotFoundError:
-            print("The file was not found")
-            return False
-        except NoCredentialsError:
-            print("Credentials not available")
-            return False
+#   Make sure workdir has been (externally) defined or exit - For TESTING in a non dockerized settings as it is defined in the Dockerfile
+#   -------------------------------------------------------
+    if "workdir" in os.environ:
+      file_path = os.getenv('workdir')+ '/' + filename
+    else:
+      print("File Directory: workdir is not defined - S3 Copy Cancelled!")
+      return 'Exit'
+    keypath = 'large_files/'+filename
+
+#   After variables defined call the boto3 copy function to perform the operation
+#   -----------------------------------------------------------------------------
+    s3_client.upload_file(file_path, bucket, keypath,Config = config)
+
+#   End Fast S3 Copy function
 
 app = flask.Flask(__name__)
 
+# Test message to check connectivity to the web service
+# -----------------------------------------------------
 @app.route('/')
 def api_root():
-    return 'Welcome'
+    return 'Welcome Test\n'
 
-#@app.route('/s3_copy', methods=['POST','GET'])
+# Main function of accepting the 3 parameters (filename,bucket,region) and invoking the fast parallel copy function
+# -----------------------------------------------------------------------------------------------------------------
 @app.route('/s3_copy')
 def my_route():
     filename = request.args.get('filename', default = 'X', type = str)
     bucket = request.args.get('bucket', default = 'X', type = str)
-    region = request.args.get('region', default = 'X', type = str)
+    region = request.args.get('region', default = 'us-east-1', type = str)
     
-#   Need to update region is .aws/config
-    FastUploadToS3(filename,bucket)
-#    UploadToS3(filename,bucket,filename)
+#   Update the AWS region env variable based on the provided region input
+    os.environ["AWS_DEFAULT_REGION"]=region
 
-    return 'filename:'+filename+'bucket_name:'+bucket+'region:'+region
+#   Invoke the fast copy function
+    FastUploadToS3(filename,bucket,region)
 
+    return 'Copied file: '+filename+' to AWS bucket: '+bucket+' in region: '+region+'\n'
 
 
 if __name__ == '__main__':
-#  app.run(host='0.0.0.0', port=80)
   app.run(host='0.0.0.0')
