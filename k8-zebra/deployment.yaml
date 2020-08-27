@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: zebra-aws
-        image: orent66/zebra:v1
+        image: orent66/zebra:v2
         imagePullPolicy: Always
         env:
         - name: AWS_ACCESS_KEY_ID

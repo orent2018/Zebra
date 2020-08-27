@@ -8,7 +8,7 @@ image:
   repository: orent66/zebra
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "v1"
+  tag: "v2"
 
 ports:
   containerPort: 5000
