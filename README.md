@@ -45,7 +45,7 @@ The copy rate was found to be about 10 seconds per 1 GB.
 Dockerizing
 -----------
 
-A Docker file was created to add prerequised and run the python web app in a container.  The docker imgage
+A Docker file was created to add prerequisites and run the python web app in a container.  The docker imgage
 was created using:
 
      docker build -t zebra-test .
@@ -110,7 +110,7 @@ The chart was validated using:
 The chart was installed using:
 
 
-      helm install zebra-chart
+      helm install zebra-chart zebra-chart/
 
 
 The chart was then packaged using:
